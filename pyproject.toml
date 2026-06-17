@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smartmirror-raid"
+version = "1.0.0"
+description = "Cross-platform desktop app that simulates RAID-1 style mirroring with software-level file replication (NOT real RAID)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "SmartMirror RAID" }]
+keywords = ["raid", "mirror", "backup", "sync", "watchdog", "desktop"]
+dependencies = [
+    "watchdog>=3.0",
+    "PySide6>=6.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "pyinstaller>=6.0",
+]
+
+[project.scripts]
+smartmirror = "smartmirror.cli:main"
+
+[project.gui-scripts]
+smartmirror-gui = "smartmirror.cli:main"
+
+[tool.setuptools]
+packages = ["smartmirror", "smartmirror.ui"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+warn_unused_ignores = false
+check_untyped_defs = true

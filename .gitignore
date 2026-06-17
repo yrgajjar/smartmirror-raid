@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# PyInstaller
+*.spec.bak
+
+# Tooling
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Runtime logs (the logs/ folder is kept via .gitkeep)
+logs/*.log
+logs/*.log.*
+
+# OS
+.DS_Store
+Thumbs.db

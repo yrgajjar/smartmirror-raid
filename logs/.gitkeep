@@ -1,0 +1,2 @@
+# Runtime logs are written here when running from source.
+# By default the app logs to the per-user data directory; see smartmirror/paths.py.
