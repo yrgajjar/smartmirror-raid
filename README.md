@@ -11,6 +11,16 @@ machine using software-level file replication.
 
 ![status](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 
+## Screenshots
+
+**Dashboard** — source/mirror paths, sync status, storage usage bar, controls and a live activity log:
+
+![SmartMirror RAID dashboard](docs/screenshots/dashboard.png)
+
+**Settings** — pick source & mirror folders, set the mirror size allocation, versioning, hash verification and start-on-login:
+
+![SmartMirror RAID settings](docs/screenshots/settings.png)
+
 ## Features
 
 | # | Feature | Where |
