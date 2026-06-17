@@ -72,6 +72,10 @@ both drive the same `MirrorService`.
 - Python **3.9+**
 - `watchdog` (file monitoring) and `PySide6` (GUI) — see `requirements.txt`
 
+> 📦 **Detailed, OS-by-OS install instructions (Windows, Linux, macOS) are in
+> [INSTALL.md](INSTALL.md)** — including build steps, usage, auto-start, and
+> troubleshooting.
+
 ## Setup (run from source)
 
 ```bash
