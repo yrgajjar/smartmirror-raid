@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from smartmirror.sync_engine import DELETE, MOVE, UPSERT
-from smartmirror.watcher import _EngineEventHandler
+from smartmirror.watcher import Debouncer, _EngineEventHandler
 
 from .helpers import make_engine
 
@@ -17,7 +17,7 @@ def _drain(engine):
 
 def test_handler_translates_events(tmp_path):
     _source, _mirror, engine = make_engine(tmp_path)
-    handler = _EngineEventHandler(engine)
+    handler = _EngineEventHandler(engine, Debouncer(0))
 
     handler.on_created(SimpleNamespace(src_path="/s/a.txt", is_directory=False))
     handler.on_modified(SimpleNamespace(src_path="/s/a.txt", is_directory=False))
@@ -35,14 +35,14 @@ def test_handler_translates_events(tmp_path):
 
 def test_modified_directory_ignored(tmp_path):
     _source, _mirror, engine = make_engine(tmp_path)
-    handler = _EngineEventHandler(engine)
+    handler = _EngineEventHandler(engine, Debouncer(0))
     handler.on_modified(SimpleNamespace(src_path="/s/dir", is_directory=True))
     assert engine._queue.empty()
 
 
 def test_enqueue_coalesces_duplicates(tmp_path):
     _source, _mirror, engine = make_engine(tmp_path)
-    handler = _EngineEventHandler(engine)
+    handler = _EngineEventHandler(engine, Debouncer(0))
     for _ in range(5):
         handler.on_modified(SimpleNamespace(src_path="/s/a.txt", is_directory=False))
     events = _drain(engine)

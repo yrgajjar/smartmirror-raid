@@ -54,6 +54,7 @@ class MirrorService:
         self._status_listeners: list[StatusListener] = []
         self._log_listeners: list[Callable[[str, str], None]] = []
         self._lock = threading.Lock()
+        self._storage_warned = False
 
     # -- configuration ------------------------------------------------------
     def reconfigure(self, config: MirrorConfig) -> None:
@@ -174,6 +175,29 @@ class MirrorService:
 
     def run_full_sync(self) -> SyncStats:
         return self.engine.full_sync(prune=True)
+
+    # -- storage alerts -----------------------------------------------------
+    def check_storage_alert(self) -> str | None:
+        """Return a one-shot warning message when the mirror zone crosses the
+        configured fill threshold (e.g. 90%); ``None`` otherwise.
+
+        The message is emitted only once per crossing: the latch resets after
+        usage drops a few points back below the threshold.
+        """
+        threshold = float(getattr(self.config, "storage_warn_percent", 90.0))
+        pct = self.storage.usage().percent_used
+        if pct >= threshold:
+            if not self._storage_warned:
+                self._storage_warned = True
+                msg = (
+                    f"Mirror zone is {pct:.0f}% full (limit {threshold:.0f}%). "
+                    f"{self.config.label()}: increase the allocation or free space."
+                )
+                log.warning(msg)
+                return msg
+        elif pct < max(0.0, threshold - 5.0):
+            self._storage_warned = False
+        return None
 
     # -- status -------------------------------------------------------------
     def status(self) -> ServiceStatus:

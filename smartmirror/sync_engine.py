@@ -8,6 +8,7 @@ avoids duplicate concurrent writes.
 
 from __future__ import annotations
 
+import errno
 import fnmatch
 import hashlib
 import os
@@ -32,6 +33,20 @@ DELETE = "delete"
 MOVE = "move"
 
 EventCallback = Callable[[str, str], None]  # (level, message)
+
+# Errno values that indicate a temporary condition (a file held open by another
+# process, a busy resource, ...) and are therefore worth retrying.
+_TRANSIENT_ERRNOS = {errno.EACCES, errno.EBUSY, errno.EAGAIN, errno.ETXTBSY}
+if hasattr(errno, "EPERM"):
+    _TRANSIENT_ERRNOS.add(errno.EPERM)
+
+
+def _is_transient(exc: OSError) -> bool:
+    # On Windows a sharing violation surfaces as winerror 32/33.
+    winerror = getattr(exc, "winerror", None)
+    if winerror in (32, 33):
+        return True
+    return exc.errno in _TRANSIENT_ERRNOS
 
 
 @dataclass
@@ -79,6 +94,8 @@ class SyncEngine:
 
         self.source = Path(config.source_path)
         self.mirror = Path(config.mirror_path)
+        self.max_retries = max(0, int(getattr(config, "max_retries", 3)))
+        self.retry_delay = max(0.0, float(getattr(config, "retry_delay", 0.5)))
 
         self._queue: queue.Queue[SyncEvent] = queue.Queue()
         self._pending: set[tuple[str, str]] = set()
@@ -177,26 +194,61 @@ class SyncEngine:
             self.stats.errors += 1
             self._emit("error", str(exc))
             return "full"
-        try:
-            if dst.exists() and self.config.versioning_enabled:
-                self.versioning.store(dst, rel)
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            tmp = dst.with_name(dst.name + ".smtmp")
-            shutil.copy2(src, tmp)
-            os.replace(tmp, dst)
+        if dst.exists() and self.config.versioning_enabled:
+            self.versioning.store(dst, rel)
+        result = self._copy_with_retry(src, dst, rel)
+        if result == "copied":
             self.stats.copied += 1
             self.stats.bytes_copied += src_size
             self.stats.last_event_time = time.time()
             self._emit("info", f"Mirrored {rel}")
-            return "copied"
-        except PermissionError as exc:
-            self.stats.errors += 1
-            self._emit("error", f"Permission denied mirroring {rel}: {exc}")
-            return "error"
-        except OSError as exc:
-            self.stats.errors += 1
-            self._emit("error", f"Failed to mirror {rel}: {exc}")
-            return "error"
+        return result
+
+    # -- atomic copy with locked-file retry --------------------------------
+    def _tmp_for(self, dst: Path) -> Path:
+        return dst.with_name(dst.name + ".smtmp")
+
+    def _cleanup_tmp(self, dst: Path) -> None:
+        try:
+            tmp = self._tmp_for(dst)
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            pass
+
+    def _interruptible_sleep(self, seconds: float) -> None:
+        if seconds > 0:
+            self._stop.wait(seconds)
+
+    def _atomic_copy(self, src: Path, dst: Path) -> None:
+        """Copy ``src`` to ``dst`` via a temp file so a crash mid-copy never
+        leaves a half-written destination."""
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self._tmp_for(dst)
+        shutil.copy2(src, tmp)
+        os.replace(tmp, dst)
+
+    def _copy_with_retry(self, src: Path, dst: Path, rel: str) -> str:
+        attempts = self.max_retries + 1
+        for attempt in range(attempts):
+            try:
+                self._atomic_copy(src, dst)
+                return "copied"
+            except OSError as exc:
+                self._cleanup_tmp(dst)
+                transient = isinstance(exc, PermissionError) or _is_transient(exc)
+                if transient and attempt < attempts - 1 and not self._stop.is_set():
+                    self._emit(
+                        "warning",
+                        f"{rel} is busy/locked; retry "
+                        f"{attempt + 1}/{self.max_retries} in {self.retry_delay:g}s",
+                    )
+                    self._interruptible_sleep(self.retry_delay)
+                    continue
+                self.stats.errors += 1
+                self._emit("error", f"Failed to mirror {rel}: {exc}")
+                return "error"
+        return "error"
 
     def delete_path(self, src: str | Path) -> str:
         src = Path(src)
@@ -297,6 +349,9 @@ class SyncEngine:
                 continue
             for name in files:
                 mirror_file = root_path / name
+                if name.endswith(".smtmp"):
+                    self._cleanup_tmp(mirror_file.with_name(name[: -len(".smtmp")]))
+                    continue
                 if self.versioning.is_versions_path(mirror_file):
                     continue
                 rel = os.path.normpath(os.path.relpath(mirror_file, self.mirror))
@@ -352,11 +407,11 @@ class SyncEngine:
                         self._emit("warning", f"Skipped existing file {rel}")
                         continue
                 try:
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(mirror_file, dst)
+                    self._atomic_copy(mirror_file, dst)
                     stats.copied += 1
                     self._emit("info", f"Restored {rel}")
                 except OSError as exc:
+                    self._cleanup_tmp(dst)
                     stats.errors += 1
                     self._emit("error", f"Failed to restore {rel}: {exc}")
         self._emit(
