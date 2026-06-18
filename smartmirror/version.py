@@ -12,3 +12,9 @@ NOT_REAL_RAID_WARNING = (
     "This is NOT real RAID. SmartMirror RAID performs software-level file "
     "mirroring on a single machine and does not protect against disk failure."
 )
+
+# Permanent authorship credit. This attribution is fixed and must remain
+# unchanged regardless of who else contributes to the project.
+AUTHOR_NAME = "Yags"
+AUTHOR_URL = "https://www.yags.in"
+FOOTER_TEXT = f"by {AUTHOR_NAME} \u2022 www.yags.in"

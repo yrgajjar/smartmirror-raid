@@ -13,13 +13,20 @@ machine using software-level file replication.
 
 ## Screenshots
 
-**Dashboard** — source/mirror paths, sync status, storage usage bar, controls and a live activity log:
+**Dashboard** — source/mirror paths, sync status, storage usage bar, controls, a live activity log, and the permanent author footer:
 
 ![SmartMirror RAID dashboard](docs/screenshots/dashboard.png)
 
 **Settings** — pick source & mirror folders, set the mirror size allocation, versioning, hash verification and start-on-login:
 
 ![SmartMirror RAID settings](docs/screenshots/settings.png)
+
+**Footer** — a fixed credit is shown at the bottom of every screen:
+
+![SmartMirror RAID footer — by Yags · www.yags.in](docs/screenshots/footer.png)
+
+> The footer (**by Yags · [www.yags.in](https://www.yags.in)**) is a permanent
+> attribution and is intended to stay in place across builds and contributors.
 
 ## Features
 

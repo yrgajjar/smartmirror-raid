@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 
-from PySide6.QtCore import QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QTextCursor
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -34,7 +34,7 @@ from ..service import (
     MirrorService,
     ServiceStatus,
 )
-from ..version import APP_NAME, NOT_REAL_RAID_WARNING, __version__
+from ..version import APP_NAME, AUTHOR_URL, FOOTER_TEXT, NOT_REAL_RAID_WARNING, __version__
 from .settings_dialog import SettingsDialog
 
 _STATE_COLORS = {
@@ -123,6 +123,20 @@ class MainWindow(QMainWindow):
         self.log_view.setMaximumBlockCount(5000)
         self.log_view.setStyleSheet("font-family: monospace; font-size: 12px;")
         root.addWidget(self.log_view, stretch=1)
+
+        root.addWidget(self._build_footer())
+
+    def _build_footer(self) -> QLabel:
+        footer = QLabel(
+            f'{APP_NAME} v{__version__} &nbsp;—&nbsp; '
+            f'<a href="{AUTHOR_URL}" style="color:#1565c0; text-decoration:none;">'
+            f"{_escape(FOOTER_TEXT)}</a>"
+        )
+        footer.setObjectName("footer")
+        footer.setOpenExternalLinks(True)
+        footer.setAlignment(Qt.AlignCenter)
+        footer.setStyleSheet("color:#616161; padding:6px; font-size:12px;")
+        return footer
 
     def _build_paths_group(self) -> QGroupBox:
         box = QGroupBox("Mirror configuration")
