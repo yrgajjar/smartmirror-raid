@@ -176,6 +176,21 @@ class MirrorService:
     def run_full_sync(self) -> SyncStats:
         return self.engine.full_sync(prune=True)
 
+    # -- selective restore --------------------------------------------------
+    def list_mirror_files(self) -> list[str]:
+        return self.engine.list_mirror_files()
+
+    def versions_for(self, rel: str):
+        return self.engine.versions_for(rel)
+
+    def restore_file(self, rel: str, overwrite: bool = False) -> str:
+        return self.engine.restore_file(rel, overwrite=overwrite)
+
+    def restore_version(
+        self, rel: str, version_path, overwrite: bool = True
+    ) -> str:
+        return self.engine.restore_version(rel, version_path, overwrite=overwrite)
+
     # -- storage alerts -----------------------------------------------------
     def check_storage_alert(self) -> str | None:
         """Return a one-shot warning message when the mirror zone crosses the

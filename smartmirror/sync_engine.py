@@ -421,6 +421,78 @@ class SyncEngine:
         )
         return stats
 
+    # -- selective restore --------------------------------------------------
+    def list_mirror_files(self) -> list[str]:
+        """Relative paths of every file currently in the mirror (versions and
+        temp files excluded), sorted for stable display."""
+        results: list[str] = []
+        if not self.mirror.exists():
+            return results
+        for root, dirs, files in os.walk(self.mirror):
+            root_path = Path(root)
+            dirs[:] = [
+                d for d in dirs if not self.versioning.is_versions_path(root_path / d)
+            ]
+            for name in files:
+                mirror_file = root_path / name
+                if name.endswith(".smtmp"):
+                    continue
+                if self.versioning.is_versions_path(mirror_file):
+                    continue
+                rel = os.path.relpath(mirror_file, self.mirror)
+                results.append(os.path.normpath(rel))
+        return sorted(results)
+
+    def versions_for(self, rel: str) -> list[Path]:
+        """Historical versions kept for ``rel`` (newest last)."""
+        return self.versioning.list_versions(rel)
+
+    def restore_file(self, rel: str, overwrite: bool = False) -> str:
+        """Restore a single mirrored file back to the source.
+
+        Returns one of ``"restored"``, ``"skipped"``, ``"missing"`` or
+        ``"error"``.
+        """
+        mirror_file = self.mirror / rel
+        if not mirror_file.is_file():
+            self._emit("error", f"Mirror file not found: {rel}")
+            return "missing"
+        dst = self.source / rel
+        if dst.exists() and not overwrite and not self.files_differ(mirror_file, dst):
+            return "skipped"
+        if dst.exists() and not overwrite:
+            self._emit("warning", f"Skipped existing file {rel} (no overwrite)")
+            return "skipped"
+        try:
+            self._atomic_copy(mirror_file, dst)
+            self._emit("info", f"Restored {rel}")
+            return "restored"
+        except OSError as exc:
+            self._cleanup_tmp(dst)
+            self._emit("error", f"Failed to restore {rel}: {exc}")
+            return "error"
+
+    def restore_version(
+        self, rel: str, version_path: str | Path, overwrite: bool = True
+    ) -> str:
+        """Restore a specific historical *version* of ``rel`` to the source."""
+        version_file = Path(version_path)
+        if not version_file.is_file():
+            self._emit("error", f"Version not found for {rel}")
+            return "missing"
+        dst = self.source / rel
+        if dst.exists() and not overwrite:
+            self._emit("warning", f"Skipped existing file {rel} (no overwrite)")
+            return "skipped"
+        try:
+            self._atomic_copy(version_file, dst)
+            self._emit("info", f"Restored {rel} from a previous version")
+            return "restored"
+        except OSError as exc:
+            self._cleanup_tmp(dst)
+            self._emit("error", f"Failed to restore version of {rel}: {exc}")
+            return "error"
+
     # -- queue / worker -----------------------------------------------------
     def enqueue(self, event: SyncEvent) -> None:
         key = (event.action, event.dest_path or event.src_path)
