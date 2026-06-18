@@ -3,3 +3,5 @@ pytest>=7.4
 ruff>=0.4
 mypy>=1.8
 pyinstaller>=6.0
+# Used by packaging/generate_icons.py to assemble .ico/.icns from the rendered icon.
+pillow>=10.0

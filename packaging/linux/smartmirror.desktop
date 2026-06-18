@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=SmartMirror RAID
+GenericName=File Mirroring
+Comment=Software RAID-1 style real-time file mirroring (not real RAID)
+Exec=smartmirror-raid
+Icon=smartmirror-raid
+Terminal=false
+Categories=Utility;System;Archiving;
+Keywords=mirror;backup;sync;raid;
+StartupNotify=true

@@ -15,13 +15,27 @@ from pathlib import Path
 # When PyInstaller execs this spec, __file__ is defined and points here.
 ROOT = Path(SPECPATH).resolve().parent  # noqa: F821 (SPECPATH injected by PyInstaller)
 
+ICON_DIR = ROOT / "packaging" / "icons"
+ICON_PNG = ICON_DIR / "icon.png"
+ICON_ICO = ICON_DIR / "icon.ico"
+ICON_ICNS = ICON_DIR / "icon.icns"
+
+if sys.platform == "win32":
+    APP_ICON = str(ICON_ICO) if ICON_ICO.exists() else None
+elif sys.platform == "darwin":
+    APP_ICON = str(ICON_ICNS) if ICON_ICNS.exists() else None
+else:
+    APP_ICON = str(ICON_PNG) if ICON_PNG.exists() else None
+
+icon_datas = [(str(ICON_PNG), "smartmirror_assets")] if ICON_PNG.exists() else []
+
 block_cipher = None
 
 a = Analysis(
     [str(ROOT / "launcher.py")],
     pathex=[str(ROOT)],
     binaries=[],
-    datas=[],
+    datas=icon_datas,
     hiddenimports=["watchdog.observers.polling"],
     hookspath=[],
     runtime_hooks=[],
@@ -50,13 +64,14 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=APP_ICON,
 )
 
 if sys.platform == "darwin":
     app = BUNDLE(
         exe,
         name="SmartMirrorRAID.app",
-        icon=None,
+        icon=APP_ICON,
         bundle_identifier="com.smartmirror-raid",
         info_plist={
             "LSUIElement": False,
